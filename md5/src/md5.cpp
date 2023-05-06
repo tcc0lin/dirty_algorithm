@@ -273,9 +273,6 @@ namespace md5 {
          */
         assert(MD5_SIZE == 16);
 
-        /*
-        md5的魔数，也可以成为IV，可以看出是0123456789abcdeffedcba9876543210拆分成的四个参数
-        */
         A = 0x67452301;
         B = 0xefcdab89;
         C = 0x98badcfe;
