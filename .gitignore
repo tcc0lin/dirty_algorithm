@@ -1,0 +1,9 @@
+.DS_Store
+*.swp
+*~
+*.a
+*.so
+*.exe
+build/
+test/demo
+.vscode
