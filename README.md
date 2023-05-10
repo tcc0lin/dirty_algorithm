@@ -2,9 +2,9 @@
 >该项目的想法是对移动安全领域常见算法的学习以及魔改方式、逆向分析方式的探究
 
 - 一、算法学习
-  - [从RFC中理解MD5算法](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E4%BB%8Erfc%E7%90%86%E8%A7%A3md5%E7%AE%97%E6%B3%95.md)
+  - [从RFC1321中理解MD5算法](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E4%BB%8ERFC%E4%B8%AD%E7%90%86%E8%A7%A3MD5%E7%AE%97%E6%B3%95.md)
     - c++实现参考md5_lib 
-  - [从RFC中理解Base64算法](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E4%BB%8ERFC%E4%B8%AD%E7%90%86%E8%A7%A3Base64%E7%AE%97%E6%B3%95.md)
+  - [从RFC4648中理解Base64算法](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E4%BB%8ERFC%E4%B8%AD%E7%90%86%E8%A7%A3Base64%E7%AE%97%E6%B3%95.md)
     - c++实现参考base64_lib 
 
 - 二、魔改思路
