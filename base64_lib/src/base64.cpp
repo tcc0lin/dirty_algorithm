@@ -131,28 +131,30 @@ std::string base64_encode(unsigned char const* bytes_to_encode, size_t in_len, b
     unsigned int pos = 0;
 
     while (pos < in_len) {
-        ret.push_back(base64_chars_[(bytes_to_encode[pos + 0] & 0xfc) >> 2]);
-
-        if (pos+1 < in_len) {
-           ret.push_back(base64_chars_[((bytes_to_encode[pos + 0] & 0x03) << 4) + ((bytes_to_encode[pos + 1] & 0xf0) >> 4)]);
-
-           if (pos+2 < in_len) {
-              ret.push_back(base64_chars_[((bytes_to_encode[pos + 1] & 0x0f) << 2) + ((bytes_to_encode[pos + 2] & 0xc0) >> 6)]);
-              ret.push_back(base64_chars_[  bytes_to_encode[pos + 2] & 0x3f]);
-           }
-           else {
-              ret.push_back(base64_chars_[(bytes_to_encode[pos + 1] & 0x0f) << 2]);
-              ret.push_back(trailing_char);
-           }
-        }
-        else {
-
-            ret.push_back(base64_chars_[(bytes_to_encode[pos + 0] & 0x03) << 4]);
-            ret.push_back(trailing_char);
-            ret.push_back(trailing_char);
-        }
-
-        pos += 3;
+         //第一个字符处理
+         ret.push_back(base64_chars_[(bytes_to_encode[pos + 0] & 0xfc) >> 2]);
+         if (pos+1 < in_len) {
+            //第二个字符处理
+            ret.push_back(base64_chars_[((bytes_to_encode[pos + 0] & 0x03) << 4) + ((bytes_to_encode[pos + 1] & 0xf0) >> 4)]);
+            if (pos+2 < in_len) {
+               //第三、四个字符处理
+               ret.push_back(base64_chars_[((bytes_to_encode[pos + 1] & 0x0f) << 2) + ((bytes_to_encode[pos + 2] & 0xc0) >> 6)]);
+               ret.push_back(base64_chars_[  bytes_to_encode[pos + 2] & 0x3f]);
+            }
+            else {
+               //剩余字符为2的处理
+               ret.push_back(base64_chars_[(bytes_to_encode[pos + 1] & 0x0f) << 2]);
+               ret.push_back(trailing_char);
+            }
+         }
+         else {
+               //剩余字符为1的处理
+               ret.push_back(base64_chars_[(bytes_to_encode[pos + 0] & 0x03) << 4]);
+               ret.push_back(trailing_char);
+               ret.push_back(trailing_char);
+         }
+         //每三个字符为一组
+         pos += 3;
     }
 
 
