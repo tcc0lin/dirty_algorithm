@@ -1,322 +1,193 @@
-#include "sha1.h"
-
-// big endian architectures need #define __BYTE_ORDER __BIG_ENDIAN
-#ifndef _MSC_VER
-#include <endian.h>
-#endif
-
-
-/// same as reset()
-SHA1::SHA1()
+#include <string.h>
+#include <stdio.h>
+ 
+#define HASH_BLOCK_SIZE         64  /* 512 bits = 64 bytes */
+#define HASH_LEN_SIZE           8   /* 64 bits =  8 bytes */
+#define HASH_LEN_OFFSET         56  /* 64 bytes - 8 bytes */
+#define HASH_DIGEST_SIZE        16  /* 128 bits = 16 bytes */
+#define HASH_ROUND_NUM          80 
+ 
+typedef unsigned char       uint8_t;
+typedef unsigned short int  uint16_t;
+typedef unsigned int        uint32_t;
+typedef unsigned long long  uint64_t;
+ 
+/* Swap bytes in 32 bit value. 0x01234567 -> 0x67452301 */
+#define __bswap_32(x)    \
+     ((((x) & 0xff000000) >> 24)  \
+     | (((x) & 0x00ff0000) >>  8) \
+     | (((x) & 0x0000ff00) <<  8) \
+     | (((x) & 0x000000ff) << 24))
+ 
+/* SHA1 Constants */
+static uint32_t K[4] =
 {
-  reset();
+    0x5A827999,     /* [0,  19] */
+    0x6ED9EBA1,     /* [20, 39] */
+    0x8F1BBCDC,     /* [40, 59] */
+    0xCA62C1D6      /* [60, 79] */
+};
+ 
+/*                  f(X, Y, Z)                      */
+/* [0,  19] */
+static uint32_t Ch(uint32_t X, uint32_t Y, uint32_t Z)
+{
+    return (X & Y) ^ ((~X) & Z);
 }
-
-
-/// restart
-void SHA1::reset()
+/* [20, 39] */  /* [60, 79] */
+static uint32_t Parity(uint32_t X, uint32_t Y, uint32_t Z)
 {
-  m_numBytes   = 0;
-  m_bufferSize = 0;
-
-  // according to RFC 1321
-  // 初始变量赋值，类似MD5算法的IV，不同点在于多了一个元素，0xc3d2e1f0不确定是什么想法
-  m_hash[0] = 0x67452301;
-  m_hash[1] = 0xefcdab89;
-  m_hash[2] = 0x98badcfe;
-  m_hash[3] = 0x10325476;
-  m_hash[4] = 0xc3d2e1f0;
+    return X ^ Y ^ Z;
 }
-
-
-namespace
+/* [40, 59] */
+static uint32_t Maj(uint32_t X, uint32_t Y, uint32_t Z)
 {
-  // 四轮算法中每轮都各使用到的非线性函数，由于第二、第四轮一样，因此只有三个函数，和MD5一样
-  // mix functions for processBlock()
-  inline uint32_t f1(uint32_t b, uint32_t c, uint32_t d)
-  {
-    return d ^ (b & (c ^ d)); // original: f = (b & c) | ((~b) & d);
-  }
-
-  inline uint32_t f2(uint32_t b, uint32_t c, uint32_t d)
-  {
-    return b ^ c ^ d;
-  }
-
-  inline uint32_t f3(uint32_t b, uint32_t c, uint32_t d)
-  {
-    return (b & c) | (b & d) | (c & d);
-  }
-
-  inline uint32_t rotate(uint32_t a, uint32_t c)
-  {
-    return (a << c) | (a >> (32 - c));
-  }
-
-  inline uint32_t swap(uint32_t x)
-  {
-#if defined(__GNUC__) || defined(__clang__)
-    return __builtin_bswap32(x);
-#endif
-#ifdef MSC_VER
-    return _byteswap_ulong(x);
-#endif
-
-    return (x >> 24) |
-          ((x >>  8) & 0x0000FF00) |
-          ((x <<  8) & 0x00FF0000) |
-           (x << 24);
-  }
+    return (X & Y) ^ (X & Z) ^ (Y & Z);
 }
-
-
-/// process 64 bytes
-void SHA1::processBlock(const void* data)
+ 
+/* 循环向左移动offset个比特位 */
+static uint32_t MoveLeft(uint32_t X, uint8_t offset)
 {
-  // get last hash
-  uint32_t a = m_hash[0];
-  uint32_t b = m_hash[1];
-  uint32_t c = m_hash[2];
-  uint32_t d = m_hash[3];
-  uint32_t e = m_hash[4];
-
-  // data represented as 16x 32-bit words
-  const uint32_t* input = (uint32_t*) data;
-  // convert to big endian
-  uint32_t words[80];
-  for (int i = 0; i < 16; i++)
-#if defined(__BYTE_ORDER) && (__BYTE_ORDER != 0) && (__BYTE_ORDER == __BIG_ENDIAN)
-    words[i] = input[i];
-#else
-    words[i] = swap(input[i]);
-#endif
-
-  // extend to 80 words
-  for (int i = 16; i < 80; i++)
-    words[i] = rotate(words[i-3] ^ words[i-8] ^ words[i-14] ^ words[i-16], 1);
-
-  // first round
-  for (int i = 0; i < 4; i++)
-  {
-    int offset = 5*i;
-    e += rotate(a,5) + f1(b,c,d) + words[offset  ] + 0x5a827999; b = rotate(b,30);
-    d += rotate(e,5) + f1(a,b,c) + words[offset+1] + 0x5a827999; a = rotate(a,30);
-    c += rotate(d,5) + f1(e,a,b) + words[offset+2] + 0x5a827999; e = rotate(e,30);
-    b += rotate(c,5) + f1(d,e,a) + words[offset+3] + 0x5a827999; d = rotate(d,30);
-    a += rotate(b,5) + f1(c,d,e) + words[offset+4] + 0x5a827999; c = rotate(c,30);
-  }
-
-  // second round
-  for (int i = 4; i < 8; i++)
-  {
-    int offset = 5*i;
-    e += rotate(a,5) + f2(b,c,d) + words[offset  ] + 0x6ed9eba1; b = rotate(b,30);
-    d += rotate(e,5) + f2(a,b,c) + words[offset+1] + 0x6ed9eba1; a = rotate(a,30);
-    c += rotate(d,5) + f2(e,a,b) + words[offset+2] + 0x6ed9eba1; e = rotate(e,30);
-    b += rotate(c,5) + f2(d,e,a) + words[offset+3] + 0x6ed9eba1; d = rotate(d,30);
-    a += rotate(b,5) + f2(c,d,e) + words[offset+4] + 0x6ed9eba1; c = rotate(c,30);
-  }
-
-  // third round
-  for (int i = 8; i < 12; i++)
-  {
-    int offset = 5*i;
-    e += rotate(a,5) + f3(b,c,d) + words[offset  ] + 0x8f1bbcdc; b = rotate(b,30);
-    d += rotate(e,5) + f3(a,b,c) + words[offset+1] + 0x8f1bbcdc; a = rotate(a,30);
-    c += rotate(d,5) + f3(e,a,b) + words[offset+2] + 0x8f1bbcdc; e = rotate(e,30);
-    b += rotate(c,5) + f3(d,e,a) + words[offset+3] + 0x8f1bbcdc; d = rotate(d,30);
-    a += rotate(b,5) + f3(c,d,e) + words[offset+4] + 0x8f1bbcdc; c = rotate(c,30);
-  }
-
-  // fourth round
-  for (int i = 12; i < 16; i++)
-  {
-    int offset = 5*i;
-    e += rotate(a,5) + f2(b,c,d) + words[offset  ] + 0xca62c1d6; b = rotate(b,30);
-    d += rotate(e,5) + f2(a,b,c) + words[offset+1] + 0xca62c1d6; a = rotate(a,30);
-    c += rotate(d,5) + f2(e,a,b) + words[offset+2] + 0xca62c1d6; e = rotate(e,30);
-    b += rotate(c,5) + f2(d,e,a) + words[offset+3] + 0xca62c1d6; d = rotate(d,30);
-    a += rotate(b,5) + f2(c,d,e) + words[offset+4] + 0xca62c1d6; c = rotate(c,30);
-  }
-
-  // update hash
-  m_hash[0] += a;
-  m_hash[1] += b;
-  m_hash[2] += c;
-  m_hash[3] += d;
-  m_hash[4] += e;
+    uint32_t res = (X << offset) | (X >> (32 - offset));
+    return res;
 }
-
-
-/// add arbitrary number of bytes
-void SHA1::add(const void* data, size_t numBytes)
+ 
+#define ASSERT_RETURN_INT(x, d) if(!(x)) { return d; }
+ 
+int sha1(unsigned char *out, const unsigned char* in, const int inlen)
 {
-  const uint8_t* current = (const uint8_t*) data;
-
-  if (m_bufferSize > 0)
-  {
-    while (numBytes > 0 && m_bufferSize < BlockSize)
+    ASSERT_RETURN_INT(out && in && (inlen >= 0), 1);
+    int i = 0, j = 0, t = 0;
+ 
+    // step 1: 字节填充(Append Padding Bytes)
+    // 数据先补上1个1比特，再补上k个0比特，使得补位后的数据比特数(n+1+k)满足(n+1+k) mod 512 = 448，k取最小正整数
+    int iX = inlen / HASH_BLOCK_SIZE;
+    int iY = inlen % HASH_BLOCK_SIZE;
+    iX = (iY < HASH_LEN_OFFSET) ? iX : (iX + 1);
+ 
+    int iLen = (iX + 1) * HASH_BLOCK_SIZE;
+    unsigned char* X = malloc(iLen);
+    memcpy(X, in, inlen);
+    // 先补上1个1比特+7个0比特
+    X[inlen] = 0x80;
+    // 再补上(k-7)个0比特
+    for (i = inlen + 1; i < (iX * HASH_BLOCK_SIZE + HASH_LEN_OFFSET); i++)
     {
-      m_buffer[m_bufferSize++] = *current++;
-      numBytes--;
+        X[i] = 0;
     }
-  }
-
-  // full buffer
-  if (m_bufferSize == BlockSize)
-  {
-    processBlock((void*)m_buffer);
-    m_numBytes  += BlockSize;
-    m_bufferSize = 0;
-  }
-
-  // no more data ?
-  if (numBytes == 0)
-    return;
-
-  // process full blocks
-  while (numBytes >= BlockSize)
-  {
-    processBlock(current);
-    current    += BlockSize;
-    m_numBytes += BlockSize;
-    numBytes   -= BlockSize;
-  }
-
-  // keep remaining bytes in buffer
-  while (numBytes > 0)
-  {
-    m_buffer[m_bufferSize++] = *current++;
-    numBytes--;
-  }
+ 
+    // step 2: 追加长度信息(Append Length)
+    uint8_t *pLen = (uint64_t*)(X + (iX * HASH_BLOCK_SIZE + HASH_LEN_OFFSET));
+    uint64_t iTempLen = inlen << 3;
+    uint8_t *pTempLen = &iTempLen;
+    pLen[0] = pTempLen[7]; pLen[1] = pTempLen[6]; pLen[2] = pTempLen[5];  pLen[3] = pTempLen[4];
+    pLen[4] = pTempLen[3]; pLen[5] = pTempLen[2]; pLen[6] = pTempLen[1];  pLen[7] = pTempLen[0];
+ 
+    // Step 3. 初始化MD Buffer(Initialize MD Buffer)
+    uint32_t H0 = 0x67452301;   // 0x01, 0x23, 0x45, 0x67
+    uint32_t H1 = 0xEFCDAB89;   // 0x89, 0xAB, 0xCD, 0xEF
+    uint32_t H2 = 0x98BADCFE;   // 0xFE, 0xDC, 0xBA, 0x98
+    uint32_t H3 = 0x10325476;   // 0x76, 0x54, 0x32, 0x10
+    uint32_t H4 = 0xC3D2E1F0;   // 0xF0, 0xE1, 0xD2, 0xC3
+ 
+    uint32_t M[HASH_BLOCK_SIZE / 4] = { 0 };
+    uint32_t W[HASH_ROUND_NUM] = { 0 };
+ 
+    // step 4: 处理消息块(Process Message in 64-Byte Blocks)
+    for (i = 0; i < iLen / HASH_BLOCK_SIZE; i++)
+    {
+        /* Copy block i into X. */
+        for (j = 0; j < HASH_BLOCK_SIZE; j = j + 4)
+        {
+            uint64_t k = i * HASH_BLOCK_SIZE + j;
+            M[j / 4] = (X[k] << 24) | (X[k + 1] << 16) | (X[k + 2] << 8) | X[k + 3];
+        }
+ 
+        /*  a. Divide M(i) into 16 words W(0), W(1), ..., W(15), where W(0) is the left - most word. */
+        for (t = 0; t <= 15; t++)
+        {
+            W[t] = M[t];
+        }
+ 
+        /*  b. For t = 16 to 79 let
+        W(t) = S^1(W(t-3) XOR W(t-8) XOR W(t-14) XOR W(t-16)). */
+        for (t = 16; t <= 79; t++)
+        {
+            W[t] = MoveLeft(W[t - 3] ^ W[t - 8] ^ W[t - 14] ^ W[t - 16], 1);
+        }
+ 
+        /*  c. Let A = H0, B = H1, C = H2, D = H3, E = H4. */
+        uint32_t A = H0;
+        uint32_t B = H1;
+        uint32_t C = H2;
+        uint32_t D = H3;
+        uint32_t E = H4;
+ 
+        /*  d. For t = 0 to 79 do
+        TEMP = S^5(A) + f(t;B,C,D) + E + W(t) + K(t);
+        E = D;  D = C;  C = S^30(B);  B = A; A = TEMP; */
+        for (t = 0; t <= 19; t++)
+        {
+            uint32_t temp = MoveLeft(A, 5) + Ch(B, C, D) + E + W[t] + K[0];
+            E = D;
+            D = C;
+            C = MoveLeft(B, 30);
+            B = A;
+            A = temp;
+        }
+        for (t = 20; t <= 39; t++)
+        {
+            uint32_t temp = MoveLeft(A, 5) + Parity(B, C, D) + E + W[t] + K[1];
+            E = D;
+            D = C;
+            C = MoveLeft(B, 30);
+            B = A;
+            A = temp;
+        }
+        for (t = 40; t <= 59; t++)
+        {
+            uint32_t temp = MoveLeft(A, 5) + Maj(B, C, D) + E + W[t] + K[2];
+            E = D;
+            D = C;
+            C = MoveLeft(B, 30);
+            B = A;
+            A = temp;
+        }
+        for (t = 60; t <= 79; t++)
+        {
+            uint32_t temp = MoveLeft(A, 5) + Parity(B, C, D) + E + W[t] + K[3];
+            E = D;
+            D = C;
+            C = MoveLeft(B, 30);
+            B = A;
+            A = temp;
+        }
+ 
+        /*  e. Let H0 = H0 + A, H1 = H1 + B, H2 = H2 + C, H3 = H3 + D, H4 = H4 + E. */
+        H0 = H0 + A;
+        H1 = H1 + B;
+        H2 = H2 + C;
+        H3 = H3 + D;
+        H4 = H4 + E;
+    }
+ 
+    // step 5: 输出ABCD
+    uint32_t* pOut = (uint8_t*)out;
+    pOut[0] = __bswap_32(H0);
+    pOut[1] = __bswap_32(H1);
+    pOut[2] = __bswap_32(H2);
+    pOut[3] = __bswap_32(H3);
+    pOut[4] = __bswap_32(H4);
+    free(X);
+ 
+    return 0;
 }
-
-
-/// process final block, less than 64 bytes
-void SHA1::processBuffer()
+ 
+int main()
 {
-  // the input bytes are considered as bits strings, where the first bit is the most significant bit of the byte
-
-  // - append "1" bit to message
-  // - append "0" bits until message length in bit mod 512 is 448
-  // - append length as 64 bit integer
-
-  // number of bits
-  size_t paddedLength = m_bufferSize * 8;
-
-  // plus one bit set to 1 (always appended)
-  paddedLength++;
-
-  // number of bits must be (numBits % 512) = 448
-  size_t lower11Bits = paddedLength & 511;
-  if (lower11Bits <= 448)
-    paddedLength +=       448 - lower11Bits;
-  else
-    paddedLength += 512 + 448 - lower11Bits;
-  // convert from bits to bytes
-  paddedLength /= 8;
-
-  // only needed if additional data flows over into a second block
-  unsigned char extra[BlockSize];
-
-  // append a "1" bit, 128 => binary 10000000
-  if (m_bufferSize < BlockSize)
-    m_buffer[m_bufferSize] = 128;
-  else
-    extra[0] = 128;
-
-  size_t i;
-  for (i = m_bufferSize + 1; i < BlockSize; i++)
-    m_buffer[i] = 0;
-  for (; i < paddedLength; i++)
-    extra[i - BlockSize] = 0;
-
-  // add message length in bits as 64 bit number
-  uint64_t msgBits = 8 * (m_numBytes + m_bufferSize);
-  // find right position
-  unsigned char* addLength;
-  if (paddedLength < BlockSize)
-    addLength = m_buffer + paddedLength;
-  else
-    addLength = extra + paddedLength - BlockSize;
-
-  // must be big endian
-  *addLength++ = (unsigned char)((msgBits >> 56) & 0xFF);
-  *addLength++ = (unsigned char)((msgBits >> 48) & 0xFF);
-  *addLength++ = (unsigned char)((msgBits >> 40) & 0xFF);
-  *addLength++ = (unsigned char)((msgBits >> 32) & 0xFF);
-  *addLength++ = (unsigned char)((msgBits >> 24) & 0xFF);
-  *addLength++ = (unsigned char)((msgBits >> 16) & 0xFF);
-  *addLength++ = (unsigned char)((msgBits >>  8) & 0xFF);
-  *addLength   = (unsigned char)( msgBits        & 0xFF);
-
-  // process blocks
-  processBlock(m_buffer);
-  // flowed over into a second block ?
-  if (paddedLength > BlockSize)
-    processBlock(extra);
-}
-
-
-/// return latest hash as 40 hex characters
-std::string SHA1::getHash()
-{
-  // compute hash (as raw bytes)
-  unsigned char rawHash[HashBytes];
-  getHash(rawHash);
-
-  // convert to hex string
-  std::string result;
-  result.reserve(2 * HashBytes);
-  for (int i = 0; i < HashBytes; i++)
-  {
-    static const char dec2hex[16+1] = "0123456789abcdef";
-    result += dec2hex[(rawHash[i] >> 4) & 15];
-    result += dec2hex[ rawHash[i]       & 15];
-  }
-
-  return result;
-}
-
-
-/// return latest hash as bytes
-void SHA1::getHash(unsigned char buffer[SHA1::HashBytes])
-{
-  // save old hash if buffer is partially filled
-  uint32_t oldHash[HashValues];
-  for (int i = 0; i < HashValues; i++)
-    oldHash[i] = m_hash[i];
-
-  // process remaining bytes
-  processBuffer();
-
-  unsigned char* current = buffer;
-  for (int i = 0; i < HashValues; i++)
-  {
-    *current++ = (m_hash[i] >> 24) & 0xFF;
-    *current++ = (m_hash[i] >> 16) & 0xFF;
-    *current++ = (m_hash[i] >>  8) & 0xFF;
-    *current++ =  m_hash[i]        & 0xFF;
-
-    // restore old hash
-    m_hash[i] = oldHash[i];
-  }
-}
-
-
-/// compute SHA1 of a memory block
-std::string SHA1::operator()(const void* data, size_t numBytes)
-{
-  reset();
-  add(data, numBytes);
-  return getHash();
-}
-
-
-/// compute SHA1 of a string, excluding final zero
-std::string SHA1::operator()(const std::string& text)
-{
-  reset();
-  add(text.c_str(), text.size());
-  return getHash();
+    unsigned char digest[20] = { 0 };
+ 
+    sha1(digest, "Hello World!", strlen("Hello World!"));
+ 
+    return 0;
 }
