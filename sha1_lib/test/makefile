@@ -1,4 +1,4 @@
 all:
-	g++  demo.cpp  -I../include/ -L../lib ../lib/libmd5.a -o demo
+	g++  demo.cpp  -I../include/ -L../lib ../lib/libsha1.a -o demo
 clean:
 	rm demo  

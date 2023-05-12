@@ -2,13 +2,10 @@
 #include "sha1.h"
 using namespace std;
 
-int main(int argc, char *argv[]) {
-    SHA1 sha1;
-    std::string myHash  = sha1("Hello World");
-    if (argc != 2) {
-        cout << "usage: ./demo string" << endl;
-    } else {
-        cout << "sha1 of '" << argv[1] << "': " << myHash << endl;
-    }
+int main() {
+    unsigned char m[56] = "123";
+	unsigned int c[5] = { 0 };
+	SHA1(m,c);
+	for (int j = 0; j <= 4; j++) printf("%08X", c[j]);
     return 0;
 }
