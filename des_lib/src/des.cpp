@@ -182,7 +182,7 @@ class DES_Encryption
 
 public:
 
-	void encrypt(const string& plain_txt, const string& key)
+	void encrypt(string plain_txt, string key)
 	{
 		// making sub-keys
 
@@ -315,16 +315,6 @@ public:
 
 };
 
-int main()
-{
-	DES_Encryption DES;
-
-	bool is_valid;
-	string plain_txt, key;
-	
-	DES.encrypt(plain_txt, key);
-	return 0;
-}
 
 string Bin_to_Hex(string s)
 {
