@@ -14,7 +14,10 @@
     - c++实现参考sha256_lib  
 
   - [从FIPS 46-3中理解DES算法](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E4%BB%8EFIPS%2046-3%E4%B8%AD%E7%90%86%E8%A7%A3DES%E7%AE%97%E6%B3%95.md)
-    - c++实现参考des_lib   
+    - c++实现参考des_lib
+
+  - [理解RC4算法](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E7%90%86%E8%A7%A3RC4%E7%AE%97%E6%B3%95.md)
+    - c++实现参考rc4_lib    
  
 - 二、魔改思路
   - [探讨关于Base64算法的魔改方式](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E6%8E%A2%E8%AE%A8%E5%85%B3%E4%BA%8EBase64%E7%AE%97%E6%B3%95%E7%9A%84%E9%AD%94%E6%94%B9%E6%96%B9%E5%BC%8F.md)
@@ -22,3 +25,5 @@
   -  [探讨关于SHA1算法的魔改方式](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E6%8E%A2%E8%AE%A8%E5%85%B3%E4%BA%8ESHA1%E7%AE%97%E6%B3%95%E7%9A%84%E9%AD%94%E6%94%B9%E6%96%B9%E5%BC%8F.md)
 
   -  [探讨关于SHA256算法的魔改方式](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E6%8E%A2%E8%AE%A8%E5%85%B3%E4%BA%8ESHA256%E7%AE%97%E6%B3%95%E7%9A%84%E9%AD%94%E6%94%B9%E6%96%B9%E5%BC%8F.md)
+  
+  -  [探讨关于RC4算法的魔改方式](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E6%8E%A2%E8%AE%A8%E5%85%B3%E4%BA%8ERC4%E7%AE%97%E6%B3%95%E7%9A%84%E9%AD%94%E6%94%B9%E6%96%B9%E5%BC%8F.md) 
