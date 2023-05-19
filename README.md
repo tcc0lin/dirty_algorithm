@@ -15,10 +15,10 @@
     - [从RFC6234理解SHA2-256算法](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E4%BB%8ERFC6234%E7%90%86%E8%A7%A3SHA2-256%E7%AE%97%E6%B3%95.md)
       - c++实现参考sha256_lib  
   - 对称加密
-    - [从FIPS 46-3中理解DES算法](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E4%BB%8EFIPS%2046-3%E4%B8%AD%E7%90%86%E8%A7%A3DES%E7%AE%97%E6%B3%95.md)
+    - [从FIPS 46-3中理解DES算法-分组加密](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E4%BB%8EFIPS%2046-3%E4%B8%AD%E7%90%86%E8%A7%A3DES%E7%AE%97%E6%B3%95.md)
       - c++实现参考des_lib
 
-    - [理解RC4算法](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E7%90%86%E8%A7%A3RC4%E7%AE%97%E6%B3%95.md)
+    - [理解RC4算法-流加密](https://github.com/tcc0lin/dirty_algorithm/blob/main/documents/%E7%90%86%E8%A7%A3RC4%E7%AE%97%E6%B3%95.md)
       - c++实现参考rc4_lib    
  
 - 二、魔改思路
